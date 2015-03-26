@@ -2,6 +2,8 @@ package org.nulleins.trees
 
 import java.io.PrintStream
 
+import oracle.net.aso.{r, l}
+
 import scala.collection.immutable.Stream._
 import scalaz.Memo
 
@@ -27,12 +29,12 @@ object RedBlackTree {
   def apply[T](values: T*)(implicit ord: Ordering[T]): RedBlackTree[T] = Black[T](values.head) ++ values.tail
   def unapply[T](node: RedBlackTree[T]) = Some(node.value, node.left, node.right)
 
-  implicit class treePrinter[T](val tree: RedBlackTree[T]) {
+  implicit class treePrinter[_](val tree: RedBlackTree[_]) {
     def show(output: PrintStream=Console.out): Unit = {
       def showNode(node: RBNode, branch: String = "", in: Int = 0): Unit = node match {
         case RedBlackTree(v,l,r) =>
           lazy val spaces: Int => String = Memo.mutableHashMapMemo[Int, String] { n => (1 to n).map(i => " ").mkString }
-          val color = if (node.isInstanceOf[Black[T]]) 'B' else 'R'
+          val color = if (node.isInstanceOf[Black[_]]) 'B' else 'R'
           output.println(s"${spaces(in)}$branch$color($v)")
           showNode(l, "+l: ", in + 2)
           showNode(r, "+r: ", in + 2)
@@ -49,7 +51,9 @@ sealed abstract class RedBlackTree[A](implicit ord: A => Ordered[A]) extends RBN
   protected[RedBlackTree] def withLeft(node: RBNode): RedBlackTree[A]
   protected[RedBlackTree] def withRight(node: RBNode): RedBlackTree[A]
 
-  def +(data: A): RedBlackTree[A] = insert(data).asBlack
+  def +(data: A): RedBlackTree[A] = insert(data) match {
+    case RedBlackTree(v,l,r) => Black(v,l,r)
+  }
   def ++(values: Iterable[A]) = values.foldLeft(this)(_+_)
   def ::(other: RedBlackTree[A]) = this ++ other.iterate().toList
 
@@ -67,7 +71,7 @@ sealed abstract class RedBlackTree[A](implicit ord: A => Ordered[A]) extends RBN
 
   private def balance: RedBlackTree[A] = {
     def rotate(a: RBNode, b: RBNode, c: RBNode, d: RBNode, x: A, y: A, z: A) =
-      Red[A](y, Black[A](x, a, b), Black[A](z, c, d))
+      Red(y, Black(x, a, b), Black(z, c, d))
     this match {
       case Black(z, Red(y: A, Red(x: A, a, b), c), d) => rotate(a, b, c, d, x, y, z)
       case Black(z, Red(x: A, a, Red(y: A, b, c)), d) => rotate(a, b, c, d, x, y, z)
@@ -77,8 +81,6 @@ sealed abstract class RedBlackTree[A](implicit ord: A => Ordered[A]) extends RBN
     }
   }
 
-  private def asBlack: RedBlackTree[A] = Black(value,left,right)
-
   private def visit[T](node: RBNode, default: T)(f: (RedBlackTree[A]) => T): T = node match {
     case t: RedBlackTree[A] => f(t)
     case Empty => default
@@ -86,8 +88,8 @@ sealed abstract class RedBlackTree[A](implicit ord: A => Ordered[A]) extends RBN
 
   def iterate(node: RBNode=this): Stream[A] = visit[Stream[A]](node,empty)(t =>
     iterate(t.left) #::: t.value #:: iterate(t.right))
-  def before(node: RBNode=this): Stream[A] = visit[Stream[A]](node,empty)(t => iterate(t.left) #::: t.value #:: empty)
-  def after(node: RBNode=this): Stream[A] = visit[Stream[A]](node,empty)(t => t.value #:: iterate(t.right))
+  def to(node: RBNode=this): Stream[A] = visit[Stream[A]](node,empty)(t => iterate(t.left) #::: t.value #:: empty)
+  def from(node: RBNode=this): Stream[A] = visit[Stream[A]](node,empty)(t => t.value #:: iterate(t.right))
   def size(node: RBNode=this): Int = visit[Int](node,0)(t => size(t.left) + size(t.right) + 1)
   def depth(node: RBNode=this): Int = visit[Int](node,0)(t => math.max(depth(t.left), depth(t.right)) + 1)
   def find(term: A, node: RBNode=this): Option[RedBlackTree[A]] = visit[Option[RedBlackTree[A]]](node,None) { t =>
@@ -100,7 +102,7 @@ sealed abstract class RedBlackTree[A](implicit ord: A => Ordered[A]) extends RBN
 }
 
 case object Empty extends RBNode {
-  def ::[T](v: T)(implicit ord: Ordering[T]) = RedBlackTree(v)
+  def ::[T](v: T*)(implicit ord: Ordering[T]) = RedBlackTree(v.head) ++ v.tail
 }
 sealed private case class Black[A](value: A, left: RBNode=Empty, right:  RBNode=Empty)
                                   (implicit ord: A => Ordered[A]) extends RedBlackTree[A] {
