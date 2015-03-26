@@ -1,8 +1,11 @@
+package org.nulleins.trees
+
+import java.io.PrintStream
+
 import scala.collection.immutable.Stream._
 import scalaz.Memo
 
-
-/* Red/Black Balanced Binary Tree implemenation
+/* Red/Black Balanced Binary Tree implementation
     1. A node is either red or black.
     2. The root is black. (This rule is sometimes omitted. Since the root can always be changed
        from red to black, but not necessarily vice versa, this rule has little effect on analysis)
@@ -19,41 +22,42 @@ import scalaz.Memo
   B:x         <a>         | <R:z <R:y(b,c)> <d>
   B:x         <a>         | <R:y <b> <R:z(c,d)>
 */
-protected trait RBTree
-object RBTree {
-  def apply[T](value: T)(implicit ord: Ordering[T]): RBN[T] = Black[T](value)
-  def apply[T](values: Seq[T])(implicit ord: Ordering[T]): RBN[T] = Black[T](values.head) ++ values.tail
+protected trait RBNode
+object RedBlackTree {
+  def apply[T](values: T*)(implicit ord: Ordering[T]): RedBlackTree[T] = Black[T](values.head) ++ values.tail
+  def unapply[T](node: RedBlackTree[T]) = Some(node.value, node.left, node.right)
 
-  implicit class treePrinter[T](val tree: RBN[T]) {
+  implicit class treePrinter[T](val tree: RedBlackTree[T]) {
     def show(output: PrintStream=Console.out): Unit = {
-      def showNode(node: RBTree, branch: String = "", in: Int = 0): Unit = node match {
-        case nn: RBN[T] =>
+      def showNode(node: RBNode, branch: String = "", in: Int = 0): Unit = node match {
+        case RedBlackTree(v,l,r) =>
           lazy val spaces: Int => String = Memo.mutableHashMapMemo[Int, String] { n => (1 to n).map(i => " ").mkString }
-          val color = if (nn.isInstanceOf[Black[T]]) 'B' else 'R'
-          output.println(s"${spaces(in)}$branch$color(${nn.value})")
-          showNode(nn.left, "+l: ", in + 2)
-          showNode(nn.right, "+r: ", in + 2)
+          val color = if (node.isInstanceOf[Black[T]]) 'B' else 'R'
+          output.println(s"${spaces(in)}$branch$color($v)")
+          showNode(l, "+l: ", in + 2)
+          showNode(r, "+r: ", in + 2)
         case Empty =>
       }
       showNode(tree)
     }
   }
 }
-abstract class RBN[A](implicit ord: A => Ordered[A]) extends RBTree {
+sealed abstract class RedBlackTree[A](implicit ord: A => Ordered[A]) extends RBNode {
   def value: A
-  def left: RBTree
-  def right: RBTree
-  protected def withLeft(node: RBN[A]): RBN[A]
-  protected def withRight(node: RBN[A]): RBN[A]
+  def left: RBNode
+  def right: RBNode
+  protected[RedBlackTree] def withLeft(node: RedBlackTree[A]): RedBlackTree[A]
+  protected[RedBlackTree] def withRight(node: RedBlackTree[A]): RedBlackTree[A]
 
-  def +(data: A): RBN[A] = ins(data).asBlack
+  def +(data: A): RedBlackTree[A] = ins(data).asBlack
   def ++(values: Iterable[A]) = values.foldLeft(this)(_+_)
-  def asBlack: RBN[A] = Black(value,left,right)
-
-  def ins(data: A): RBN[A] = {
-    def childWith(parent: RBTree, v: A): RBN[A] = parent match {
+  def ::(other: RedBlackTree[A]) = {
+    this ++ other.iterate().toList
+  }
+  private def ins(data: A): RedBlackTree[A] = {
+    def childWith(parent: RBNode, v: A): RedBlackTree[A] = parent match {
       case Empty => Red(v)
-      case node: RBN[A] => node ins v
+      case node: RedBlackTree[A] => node ins v
     }
     data compare value match {
       case d if d < 0 => withLeft ( childWith(left, data)).balance
@@ -62,8 +66,8 @@ abstract class RBN[A](implicit ord: A => Ordered[A]) extends RBTree {
     }
   }
 
-  def balance: RBN[A] = {
-    def rotate(a: RBTree, b: RBTree, c: RBTree, d: RBTree, x: A, y: A, z: A) =
+  private def balance: RedBlackTree[A] = {
+    def rotate(a: RBNode, b: RBNode, c: RBNode, d: RBNode, x: A, y: A, z: A) =
       Red[A](y, Black[A](x, a, b), Black[A](z, c, d))
     this match {
       case Black(z, Red(y: A, Red(x: A, a, b), c), d) => rotate(a, b, c, d, x, y, z)
@@ -74,18 +78,20 @@ abstract class RBN[A](implicit ord: A => Ordered[A]) extends RBTree {
     }
   }
 
-  private def visit[T](node: RBTree, default: T)(f: (RBN[A]) => T): T = node match {
-    case t: RBN[A] => f(t)
+  private def asBlack: RedBlackTree[A] = Black(value,left,right)
+
+  private def visit[T](node: RBNode, default: T)(f: (RedBlackTree[A]) => T): T = node match {
+    case t: RedBlackTree[A] => f(t)
     case Empty => default
   }
 
-  def iterate(node: RBTree=this): Stream[A] = visit[Stream[A]](node,empty)(t =>
+  def iterate(node: RBNode=this): Stream[A] = visit[Stream[A]](node,empty)(t =>
     iterate(t.left) #::: t.value #:: iterate(t.right))
-  def before(node: RBTree=this): Stream[A] = visit[Stream[A]](node,empty)(t => iterate(t.left) #::: t.value #:: empty)
-  def after(node: RBTree=this): Stream[A] = visit[Stream[A]](node,empty)(t => t.value #:: iterate(t.right))
-  def size(node: RBTree=this): Int = visit[Int](node,0)(t => size(t.left) + size(t.right) + 1)
-  def depth(node: RBTree=this): Int = visit[Int](node,0)(t => math.max(depth(t.left), depth(t.right)) + 1)
-  def find(term: A, node: RBTree=this): Option[RBN[A]] = visit[Option[RBN[A]]](node,None) { t =>
+  def before(node: RBNode=this): Stream[A] = visit[Stream[A]](node,empty)(t => iterate(t.left) #::: t.value #:: empty)
+  def after(node: RBNode=this): Stream[A] = visit[Stream[A]](node,empty)(t => t.value #:: iterate(t.right))
+  def size(node: RBNode=this): Int = visit[Int](node,0)(t => size(t.left) + size(t.right) + 1)
+  def depth(node: RBNode=this): Int = visit[Int](node,0)(t => math.max(depth(t.left), depth(t.right)) + 1)
+  def find(term: A, node: RBNode=this): Option[RedBlackTree[A]] = visit[Option[RedBlackTree[A]]](node,None) { t =>
     term compare t.value match {
       case 0 => Some(t)
       case d if d < 0 => find(term, t.left)
@@ -95,14 +101,14 @@ abstract class RBN[A](implicit ord: A => Ordered[A]) extends RBTree {
 
 }
 
-private object Empty extends RBTree
-sealed private case class Black[A](value: A, left: RBTree=Empty, right:  RBTree=Empty)
-                                  (implicit ord: A => Ordered[A]) extends RBN[A] {
-  def withLeft(node: RBN[A]) = copy(left=node)
-  def withRight(node: RBN[A]) = copy(right=node)
+object Empty extends RBNode
+sealed private case class Black[A](value: A, left: RBNode=Empty, right:  RBNode=Empty)
+                                  (implicit ord: A => Ordered[A]) extends RedBlackTree[A] {
+  def withLeft(node: RedBlackTree[A]) = copy(left=node)
+  def withRight(node: RedBlackTree[A]) = copy(right=node)
 }
-sealed private case class Red[A](value: A, left: RBTree=Empty, right:  RBTree=Empty)
-                                (implicit ord: A => Ordered[A]) extends RBN[A]{
-  def withLeft(node: RBN[A]) = copy(left=node)
-  def withRight(node: RBN[A]) = copy(right=node)
+sealed private case class Red[A](value: A, left: RBNode=Empty, right:  RBNode=Empty)
+                                (implicit ord: A => Ordered[A]) extends RedBlackTree[A]{
+  def withLeft(node: RedBlackTree[A]) = copy(left=node)
+  def withRight(node: RedBlackTree[A]) = copy(right=node)
 }
