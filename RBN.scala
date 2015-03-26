@@ -56,6 +56,7 @@ sealed abstract class RedBlackTree[A](implicit ord: A => Ordered[A]) extends RBN
   }
   def ++(values: Iterable[A]) = values.foldLeft(this)(_+_)
   def ::(other: RedBlackTree[A]) = this ++ other.iterate().toList
+  def ::(data: A) = this + data
 
   private def insert(data: A): RedBlackTree[A] = {
     def childWith(parent: RBNode, v: A): RedBlackTree[A] = parent match {
@@ -92,6 +93,7 @@ sealed abstract class RedBlackTree[A](implicit ord: A => Ordered[A]) extends RBN
   def from(node: RBNode=this): Stream[A] = visit[Stream[A]](node,empty)(t => t.value #:: iterate(t.right))
   def size(node: RBNode=this): Int = visit[Int](node,0)(t => size(t.left) + size(t.right) + 1)
   def depth(node: RBNode=this): Int = visit[Int](node,0)(t => math.max(depth(t.left), depth(t.right)) + 1)
+  def contains(term: A): Boolean = find(term).isDefined
   def find(term: A, node: RBNode=this): Option[RedBlackTree[A]] = visit[Option[RedBlackTree[A]]](node,None) { t =>
     term compare t.value match {
       case 0 => Some(t)
