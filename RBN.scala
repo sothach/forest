@@ -2,9 +2,7 @@ package org.nulleins.trees
 
 import java.io.PrintStream
 
-import oracle.net.aso.{r, l}
-
-import scala.collection.immutable.Stream._
+import scala.collection.Iterator.empty
 import scalaz.Memo
 
 /* Red/Black Balanced Binary Tree implementation
@@ -25,7 +23,7 @@ import scalaz.Memo
   B:x         <a>         | <R:y <b> <R:z(c,d)>
 */
 protected trait RBNode
-object RedBlackTree {
+case object RedBlackTree {
   def apply[T](values: T*)(implicit ord: Ordering[T]): RedBlackTree[T] = Black[T](values.head) ++ values.tail
   def unapply[T](node: RedBlackTree[T]) = Some(node.value, node.left, node.right)
 
@@ -87,13 +85,13 @@ sealed abstract class RedBlackTree[A](implicit ord: A => Ordered[A]) extends RBN
     case Empty => default
   }
 
-  def iterate(node: RBNode=this): Stream[A] = visit[Stream[A]](node,empty)(t =>
-    iterate(t.left) #::: t.value #:: iterate(t.right))
-  def to(node: RBNode=this): Stream[A] = visit[Stream[A]](node,empty)(t => iterate(t.left) #::: t.value #:: empty)
-  def from(node: RBNode=this): Stream[A] = visit[Stream[A]](node,empty)(t => t.value #:: iterate(t.right))
+  def to: Iterator[A] = visit[Iterator[A]](this,empty)(t => iterate(t.left) ++ Iterator(t.value))
+  def from: Iterator[A] = visit[Iterator[A]](this,empty)(t => Iterator(t.value) ++ iterate(t.right))
+  def contains(term: A): Boolean = find(term).isDefined
+  def iterate(node: RBNode=this): Iterator[A] = visit[Iterator[A]](node,empty)(t =>
+    iterate(t.left) ++ Iterator(t.value) ++ iterate(t.right))
   def size(node: RBNode=this): Int = visit[Int](node,0)(t => size(t.left) + size(t.right) + 1)
   def depth(node: RBNode=this): Int = visit[Int](node,0)(t => math.max(depth(t.left), depth(t.right)) + 1)
-  def contains(term: A): Boolean = find(term).isDefined
   def find(term: A, node: RBNode=this): Option[RedBlackTree[A]] = visit[Option[RedBlackTree[A]]](node,None) { t =>
     term compare t.value match {
       case 0 => Some(t)
