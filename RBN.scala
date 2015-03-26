@@ -24,13 +24,13 @@ object RBTree {
   def apply[T](value: T)(implicit ord: Ordering[T]): RBN[T] = Black[T](value)
   def apply[T](values: Seq[T])(implicit ord: Ordering[T]): RBN[T] = Black[T](values.head) ++ values.tail
 
-  implicit class printTree[T](val tree: RBN[T]) {
-    def show(): Unit = {
+  implicit class treePrinter[T](val tree: RBN[T]) {
+    def show(output: PrintStream=Console.out): Unit = {
       def showNode(node: RBTree, branch: String = "", in: Int = 0): Unit = node match {
         case nn: RBN[T] =>
           lazy val spaces: Int => String = Memo.mutableHashMapMemo[Int, String] { n => (1 to n).map(i => " ").mkString }
           val color = if (nn.isInstanceOf[Black[T]]) 'B' else 'R'
-          println(s"${spaces(in)}$branch$color(${nn.value})")
+          output.println(s"${spaces(in)}$branch$color(${nn.value})")
           showNode(nn.left, "+l: ", in + 2)
           showNode(nn.right, "+r: ", in + 2)
         case Empty =>
