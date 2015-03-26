@@ -23,6 +23,21 @@ protected trait RBTree
 object RBTree {
   def apply[T](value: T)(implicit ord: Ordering[T]): RBN[T] = Black[T](value)
   def apply[T](values: Seq[T])(implicit ord: Ordering[T]): RBN[T] = Black[T](values.head) ++ values.tail
+
+  implicit class printTree[T](val tree: RBN[T]) {
+    def show(): Unit = {
+      def showNode(node: RBTree, branch: String = "", in: Int = 0): Unit = node match {
+        case nn: RBN[T] =>
+          lazy val spaces: Int => String = Memo.mutableHashMapMemo[Int, String] { n => (1 to n).map(i => " ").mkString }
+          val color = if (nn.isInstanceOf[Black[T]]) 'B' else 'R'
+          println(s"${spaces(in)}$branch$color(${nn.value})")
+          showNode(nn.left, "+l: ", in + 2)
+          showNode(nn.right, "+r: ", in + 2)
+        case Empty =>
+      }
+      showNode(tree)
+    }
+  }
 }
 abstract class RBN[A](implicit ord: A => Ordered[A]) extends RBTree {
   def value: A
@@ -78,25 +93,16 @@ abstract class RBN[A](implicit ord: A => Ordered[A]) extends RBTree {
     }
   }
 
-  def show(node: RBTree=this, branch: String="", in: Int = 0): Unit = visit[Unit](node,Int) {
-    case nn: RBN[A] =>
-      lazy val spaces: Int => String = Memo.mutableHashMapMemo[Int, String]{n=>(1 to n).map(i=>" ").mkString}
-      val color = if (nn.isInstanceOf[Black[A]]) 'B' else 'R'
-      println(s"${spaces(in)}$branch$color(${nn.value})")
-      show(nn.left, "+l: ", in + 2)
-      show(nn.right, "+r: ", in + 2)
-  }
-
 }
 
 private object Empty extends RBTree
-sealed private case class Black[A](
-                                    value: A, left: RBTree=Empty, right:  RBTree=Empty)(implicit ord: A => Ordered[A]) extends RBN[A] {
+sealed private case class Black[A](value: A, left: RBTree=Empty, right:  RBTree=Empty)
+                                  (implicit ord: A => Ordered[A]) extends RBN[A] {
   def withLeft(node: RBN[A]) = copy(left=node)
   def withRight(node: RBN[A]) = copy(right=node)
 }
-sealed private case class Red[A](
-                                  value: A, left: RBTree=Empty, right:  RBTree=Empty)(implicit ord: A => Ordered[A]) extends RBN[A]{
+sealed private case class Red[A](value: A, left: RBTree=Empty, right:  RBTree=Empty)
+                                (implicit ord: A => Ordered[A]) extends RBN[A]{
   def withLeft(node: RBN[A]) = copy(left=node)
   def withRight(node: RBN[A]) = copy(right=node)
 }
