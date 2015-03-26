@@ -46,18 +46,17 @@ sealed abstract class RedBlackTree[A](implicit ord: A => Ordered[A]) extends RBN
   def value: A
   def left: RBNode
   def right: RBNode
-  protected[RedBlackTree] def withLeft(node: RedBlackTree[A]): RedBlackTree[A]
-  protected[RedBlackTree] def withRight(node: RedBlackTree[A]): RedBlackTree[A]
+  protected[RedBlackTree] def withLeft(node: RBNode): RedBlackTree[A]
+  protected[RedBlackTree] def withRight(node: RBNode): RedBlackTree[A]
 
-  def +(data: A): RedBlackTree[A] = ins(data).asBlack
+  def +(data: A): RedBlackTree[A] = insert(data).asBlack
   def ++(values: Iterable[A]) = values.foldLeft(this)(_+_)
-  def ::(other: RedBlackTree[A]) = {
-    this ++ other.iterate().toList
-  }
-  private def ins(data: A): RedBlackTree[A] = {
+  def ::(other: RedBlackTree[A]) = this ++ other.iterate().toList
+
+  private def insert(data: A): RedBlackTree[A] = {
     def childWith(parent: RBNode, v: A): RedBlackTree[A] = parent match {
       case Empty => Red(v)
-      case node: RedBlackTree[A] => node ins v
+      case node: RedBlackTree[A] => node insert v
     }
     data compare value match {
       case d if d < 0 => withLeft ( childWith(left, data)).balance
@@ -98,17 +97,18 @@ sealed abstract class RedBlackTree[A](implicit ord: A => Ordered[A]) extends RBN
       case d if d > 0 => find(term, t.right)
     }
   }
-
 }
 
-object Empty extends RBNode
+case object Empty extends RBNode {
+  def ::[T](v: T)(implicit ord: Ordering[T]) = RedBlackTree(v)
+}
 sealed private case class Black[A](value: A, left: RBNode=Empty, right:  RBNode=Empty)
                                   (implicit ord: A => Ordered[A]) extends RedBlackTree[A] {
-  def withLeft(node: RedBlackTree[A]) = copy(left=node)
-  def withRight(node: RedBlackTree[A]) = copy(right=node)
+  def withLeft(node: RBNode) = copy(left=node)
+  def withRight(node: RBNode) = copy(right=node)
 }
 sealed private case class Red[A](value: A, left: RBNode=Empty, right:  RBNode=Empty)
                                 (implicit ord: A => Ordered[A]) extends RedBlackTree[A]{
-  def withLeft(node: RedBlackTree[A]) = copy(left=node)
-  def withRight(node: RedBlackTree[A]) = copy(right=node)
+  def withLeft(node: RBNode) = copy(left=node)
+  def withRight(node: RBNode) = copy(right=node)
 }
