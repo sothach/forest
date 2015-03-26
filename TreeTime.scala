@@ -1,4 +1,4 @@
-import org.nulleins.trees.{RedBlackTree, RBNode}
+import org.nulleins.trees.{Empty, RedBlackTree}
 import org.scalatest.FunSuite
 
 class TreeTime extends FunSuite {
@@ -12,7 +12,7 @@ class TreeTime extends FunSuite {
   test("word tree") {
     val tree = RedBlackTree("Dublin", "Cork", "Limerick", "Sligo", "Belfast",
                 "Waterford", "Wexford", "Athlone", "Edenderry", "Finglas", "Galway")
-    tree.show(Console.err)
+    tree.show(Console.out)
     tree.iterate() foreach println
     assert(tree.size() === 11)
 
@@ -27,8 +27,7 @@ class TreeTime extends FunSuite {
   }
 
   test("building") {
-    val item1 = RedBlackTree("aaa", "bcd")
-    val tree = item1 + "efg" + "hij"
+    val tree = "bcd" + "efg" + "hij" :: Empty
     val tree2 = tree :: RedBlackTree("klm", "nop", "qrs", "tuv", "wxy", "zzz")
     tree2.show()
   }
