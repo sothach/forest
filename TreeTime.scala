@@ -21,15 +21,17 @@ class TreeTime extends FunSuite {
 
     val list = tree.find("Edenderry") match {
       case None => ""
-      case Some(root) => root.before().toList map identity
+      case Some(root) => root.to().toList map identity
     }
     println(list)
   }
 
   test("building") {
-    val tree = "bcd" + "efg" + "hij" :: Empty
+    val tree = "efg" :: "hij" :: "bcd" :: Empty
     val tree2 = tree :: RedBlackTree("klm", "nop", "qrs", "tuv", "wxy", "zzz")
     tree2.show()
+    assert(tree2 contains "bcd")
+    assert(tree2 contains "klm")
   }
 
   /*  test("O(logn)?") {
