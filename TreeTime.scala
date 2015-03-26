@@ -1,18 +1,18 @@
+import org.nulleins.trees.{RedBlackTree, RBNode}
 import org.scalatest.FunSuite
 
 class TreeTime extends FunSuite {
-
   test("red-black tree") {
-    val tree = (1 to 20).foldLeft(RBTree(1))(_+_)
+    val tree = (1 to 20).foldLeft(RedBlackTree(1))(_+_)
     tree.show()
     assert(tree.size() === 20)
     assert(tree.depth() === 6)
   }
 
   test("word tree") {
-    val tree = RBTree(Seq("Dublin", "Cork", "Limerick", "Sligo", "Belfast",
-                "Waterford", "Wexford", "Athlone", "Edenderry", "Finglas", "Galway"))
-    tree.show()
+    val tree = RedBlackTree("Dublin", "Cork", "Limerick", "Sligo", "Belfast",
+                "Waterford", "Wexford", "Athlone", "Edenderry", "Finglas", "Galway")
+    tree.show(Console.err)
     tree.iterate() foreach println
     assert(tree.size() === 11)
 
@@ -24,6 +24,13 @@ class TreeTime extends FunSuite {
       case Some(root) => root.before().toList map identity
     }
     println(list)
+  }
+
+  test("building") {
+    val item1 = RedBlackTree("aaa", "bcd")
+    val tree = item1 + "efg" + "hij"
+    val tree2 = tree :: RedBlackTree("klm", "nop", "qrs", "tuv", "wxy", "zzz")
+    tree2.show()
   }
 
   /*  test("O(logn)?") {
