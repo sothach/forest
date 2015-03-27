@@ -3,6 +3,7 @@ package org.nulleins.trees
 import java.io.PrintStream
 
 import scala.collection.Iterator.empty
+import scala.math._
 import scalaz.Memo
 
 /* Red/Black Balanced Binary Tree implementation
@@ -22,7 +23,12 @@ import scalaz.Memo
   B:x         <a>         | <R:z <R:y(b,c)> <d>
   B:x         <a>         | <R:y <b> <R:z(c,d)>
 */
-protected trait RBNode
+protected trait RBNode {
+  def +<[A](v: A)(implicit ord: Ordering[A]): RedBlackTree[A] = this match {
+    case Empty => Red(v)
+    case node: RedBlackTree[A] => node insert v
+  }
+}
 case object RedBlackTree {
   def apply[T](values: T*)(implicit ord: Ordering[T]): RedBlackTree[T] = Black[T](values.head) ++ values.tail
   def unapply[T](node: RedBlackTree[T]) = Some(node.value, node.left, node.right)
@@ -56,17 +62,11 @@ sealed abstract class RedBlackTree[A](implicit ord: A => Ordered[A]) extends RBN
   def ::(other: RedBlackTree[A]) = this ++ other.iterate().toList
   def ::(data: A) = this + data
 
-  private def insert(data: A): RedBlackTree[A] = {
-    def childWith(parent: RBNode, v: A): RedBlackTree[A] = parent match {
-      case Empty => Red(v)
-      case node: RedBlackTree[A] => node insert v
-    }
-    data compare value match {
-      case d if d < 0 => withLeft ( childWith(left, data)).balance
-      case d if d > 0 => withRight ( childWith(right, data)).balance
+  def insert(data: A): RedBlackTree[A] = data compare value match {
+      case d if d < 0 => withLeft ( left +< data).balance
+      case d if d > 0 => withRight ( right +< data).balance
       case  0 => this
     }
-  }
 
   private def balance: RedBlackTree[A] = {
     def rotate(a: RBNode, b: RBNode, c: RBNode, d: RBNode, x: A, y: A, z: A) =
@@ -84,12 +84,13 @@ sealed abstract class RedBlackTree[A](implicit ord: A => Ordered[A]) extends RBN
     case t: RedBlackTree[A] => f(t)
     case Empty => default
   }
+  private def iterate(node: RBNode=this): Iterator[A] = visit[Iterator[A]](node,empty)(t =>
+    iterate(t.left) ++ Iterator(t.value) ++ iterate(t.right))
 
   def to: Iterator[A] = visit[Iterator[A]](this,empty)(t => iterate(t.left) ++ Iterator(t.value))
   def from: Iterator[A] = visit[Iterator[A]](this,empty)(t => Iterator(t.value) ++ iterate(t.right))
   def contains(term: A): Boolean = find(term).isDefined
-  def iterate(node: RBNode=this): Iterator[A] = visit[Iterator[A]](node,empty)(t =>
-    iterate(t.left) ++ Iterator(t.value) ++ iterate(t.right))
+  def iterator: Iterator[A] = iterate(this)
   def size(node: RBNode=this): Int = visit[Int](node,0)(t => size(t.left) + size(t.right) + 1)
   def depth(node: RBNode=this): Int = visit[Int](node,0)(t => math.max(depth(t.left), depth(t.right)) + 1)
   def find(term: A, node: RBNode=this): Option[RedBlackTree[A]] = visit[Option[RedBlackTree[A]]](node,None) { t =>
